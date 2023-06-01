@@ -22,7 +22,7 @@ layers g s t = layers' g s t (Sequence.singleton (s, 0)) (Map.singleton s 0) whe
             q' = Sequence.drop 1 q               -- remove the top of the queue
             m' = Map.insert v d m                -- add the vertex to the dictionary
             -- add the neighbors of v to the queue if they are not already in the dictionary
-            q'' = foldl (\q (u, (c, f)) -> if Map.member u m' && f < c then q else q |> (u, d + 1)) q' (neighbors g v)
+            q'' = foldl (\q (u, (c, f)) -> if Map.member u m' && f > 0 then q else q |> (u, d + 1)) q' (neighbors g v)
 
 -- Construct the layered graph
 -- i.e. keep only the edges that go from a vertex of layer i to a vertex of layer i + 1
@@ -32,17 +32,23 @@ layeredGraph g s t layers = Map.fromList [(v, Map.fromList $ filter (\(u, (c, f)
 
 -- Find an augmenting path in the layered graph in a DFS manner
 -- Returns: a path from s to t in the layered graph
-findAugmenting :: Graph -> LayeredStructure -> Vertex -> Vertex -> Maybe Path
-findAugmenting g layers s t = restorePath (findAugmenting' g layers t [s] Map.empty) s t where
+findBlocking :: Graph -> LayeredStructure -> Vertex -> Vertex -> Maybe Path
+findBlocking g layers s t = restorePath (findAugmenting' g layers t [s] Map.empty) s t where
         max_depth = layers Map.! t
         findAugmenting' g layers t stack parents
             | s == t = parents
             | layers Map.! s >= max_depth = findAugmenting' g layers t (tail stack) parents  -- no need to explore this vertex
             | otherwise = findAugmenting' g layers t stack' parents' where
                 s = head stack
-                nbs = [v | (v, (c, f)) <- neighbors g s, f < c, not $ Map.member v parents]
+                nbs = [v | (v, (c, f)) <- neighbors g s, f > 0, not $ Map.member v parents]
                 stack' = nbs ++ tail stack
                 parents' = foldl (\parents v -> Map.insert v s parents) parents nbs
+
+
+pushAugmenting :: Graph -> Path -> Graph
+pushAugmenting g p = foldl (\g (u, v) -> pushFlow g u v f) g edges where
+    edges = zip p (tail p)
+    f = minimum [c - f | (u, v) <- edges, let (_, _, c, f) = getEdge g u v]
 
 
 -- | Dinic Algorithm
