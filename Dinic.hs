@@ -7,11 +7,8 @@ import FlowGraph
 import Data.Maybe
 import Data.Array as Array (array, bounds) -- for a Graph implementation
 import Data.Sequence as Sequence (Seq, null, singleton, (|>), index, drop) -- for a Queue implementation
-import qualified Data.IntMap.Strict as Map (IntMap, singleton, null, member, insert, assocs, (!), fromList) -- for a Dictionary implementation
+import qualified Data.IntMap.Strict as Map (IntMap, singleton, null, member, insert, assocs, (!), fromList, empty) -- for a Dictionary implementation
 
-
--- A path is a sequence of edges
-type Path = [Edge]
 type LayeredStructure = Map.IntMap Int
 
 -- Assign layers to the vertices of the graph in a bfs manner
@@ -35,8 +32,17 @@ layeredGraph g s t layers = Map.fromList [(v, Map.fromList $ filter (\(u, (c, f)
 
 -- Find an augmenting path in the layered graph in a DFS manner
 -- Returns: a path from s to t in the layered graph
-findAugmenting :: Graph -> LayeredStructure -> Vertex -> Vertex -> Path
-findAugmenting g layers s t = 
+findAugmenting :: Graph -> LayeredStructure -> Vertex -> Vertex -> Maybe Path
+findAugmenting g layers s t = restorePath (findAugmenting' g layers t [s] Map.empty) s t where
+        max_depth = layers Map.! t
+        findAugmenting' g layers t stack parents
+            | s == t = parents
+            | layers Map.! s >= max_depth = findAugmenting' g layers t (tail stack) parents  -- no need to explore this vertex
+            | otherwise = findAugmenting' g layers t stack' parents' where
+                s = head stack
+                nbs = [v | (v, (c, f)) <- neighbors g s, f < c, not $ Map.member v parents]
+                stack' = nbs ++ tail stack
+                parents' = foldl (\parents v -> Map.insert v s parents) parents nbs
 
 
 -- | Dinic Algorithm
