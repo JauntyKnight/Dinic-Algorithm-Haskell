@@ -9,13 +9,13 @@ type Vertex = Int
 type VertexMap a = Map.IntMap a
 type Capacity = Float
 type Flow = Float
-type Edge = (Vertex, Vertex, Capacity, Flow)
+type Edge = (Vertex, Vertex, Capacity)
 type Path = [Vertex]
-type Graph = VertexMap (VertexMap (Capacity, Flow))
+type Graph = VertexMap (VertexMap Capacity)
 
 
 fromAssocList :: [(Vertex, [(Vertex, Capacity)])] -> Graph
-fromAssocList assocl = Map.fromList [(v, Map.fromList $ map (\(u, c) -> (u, (c, c))) nbs) | (v, nbs) <- assocl]
+fromAssocList assocl = Map.fromList [(v, Map.fromList $ map (\(u, c) -> (u, c)) nbs) | (v, nbs) <- assocl]
 
 
 fromEdgeList :: [(Vertex, Vertex, Capacity)] -> Graph
@@ -25,26 +25,27 @@ fromEdgeList edges = fromAssocList assocl where
     assocl = [(v, nbs) | group <- grouped, let v = fst3 $ head group, let nbs = map (\(_, w, c) -> (w, c)) group]
 
 
-toEdgeList :: Graph -> [(Vertex, Vertex, Capacity, Flow)]
-toEdgeList g = [(u, v, c, f) | (u, nbs) <- Map.assocs g, (v, (c, f)) <- Map.assocs nbs]
+toEdgeList :: Graph -> [Edge]
+toEdgeList g = [(u, v, c) | (u, nbs) <- Map.assocs g, (v, c) <- Map.assocs nbs]
 
 getEdge :: Graph -> Vertex -> Vertex -> Edge
-getEdge g u v = (u, v, c, f) where
-    (c, f) = (g Map.! u) Map.! v
+getEdge g u v = (u, v, c) where
+    c = (g Map.! u) Map.! v
 
 
-neighbors :: Graph -> Vertex -> [(Vertex, (Capacity, Flow))]
+neighbors :: Graph -> Vertex -> [(Vertex, Capacity)]
 neighbors g v = Map.assocs (g Map.! v)
 
 
 pushFlow :: Graph -> Vertex -> Vertex -> Flow -> Graph
-pushFlow g u v f = Map.adjust (Map.adjust (\(c, f') -> (c, f' + f)) v) u g
+pushFlow g u v f = Map.adjust (Map.adjust (\c -> c - f) v) u g' where
+    g' = Map.adjust (Map.adjust (+ f) u) v g
 
 
 -- Assumes there are no cycles of size 2. Inshallah will be fixed later
 constructResidual :: Graph -> Graph
-constructResidual g = fromEdgeList $ edges ++ map (\(u, v, _) -> (v, u, 0)) edges where
-    edges = map (\(u, v, c, f) -> (u, v, c)) $ toEdgeList g
+constructResidual g = fromEdgeList $ edges ++ map (\(u, v, c) -> (v, u, 0)) edges where
+    edges = toEdgeList g
 
 
 removeEdge :: Graph -> Vertex -> Vertex -> Graph
@@ -57,4 +58,3 @@ restorePath parents s t
     | otherwise = case restorePath parents s (parents Map.! t) of
         Nothing -> Nothing
         Just p -> Just (t:p)
-
