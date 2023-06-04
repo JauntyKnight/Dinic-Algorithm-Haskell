@@ -5,11 +5,12 @@ import qualified Data.IntMap.Strict as Map
 import Data.IntMap (IntMap)
 import Data.List
 import Debug.Trace
+import System.IO
 
 type Vertex = Int
 type VertexMap a = Map.IntMap a
-type Capacity = Float
-type Flow = Float
+type Capacity = Int
+type Flow = Int
 type Edge = (Vertex, Vertex, Capacity)
 type Path = [Vertex]
 type Graph = VertexMap (VertexMap Capacity)
@@ -19,7 +20,7 @@ fromAssocList :: [(Vertex, [(Vertex, Capacity)])] -> Graph
 fromAssocList assocl = Map.fromList [(v, Map.fromList $ map (\(u, c) -> (u, c)) nbs) | (v, nbs) <- assocl]
 
 
-fromEdgeList :: [(Vertex, Vertex, Capacity)] -> Graph
+fromEdgeList :: [Edge] -> Graph
 fromEdgeList edges = fromAssocList assocl where
     grouped = groupBy (\(u, _, _) (v, _, _) -> u == v) $ sortBy (\(u, _, _) (v, _, _) -> compare u v) edges
     fst3 (x, _, _) = x
@@ -35,7 +36,9 @@ getEdge g u v = (u, v, c) where
 
 
 neighbors :: Graph -> Vertex -> [(Vertex, Capacity)]
-neighbors g v = Map.assocs (g Map.! v)
+neighbors g v
+    | Map.member v g = Map.assocs (g Map.! v)
+    | otherwise = []
 
 
 pushFlow :: Graph -> Vertex -> Vertex -> Flow -> Graph
@@ -63,3 +66,18 @@ restorePath parents s t
     | otherwise = case restorePath parents s (parents Map.! t) of
         Nothing -> Nothing
         Just p -> Just (t:p)
+
+
+-- reads a graph from a file in the format:
+-- s t   -- source and sink on the first line
+-- u v c -- edge from u to v with capacity c on the remaining lines
+readFileEdgeList :: String -> IO (Vertex, Vertex, [Edge])
+readFileEdgeList filename = do
+        handle <- openFile filename ReadMode
+        contents <- hGetContents handle
+        let ls = words contents
+            [s, t] = map read $ take 2 ls
+            edges = map (\(u, v, c) -> (read u, read v, read c)) . group3 $ drop 2 ls
+        return (s, t, edges)
+        where group3 [] = []
+              group3 (x:y:z:xs) = (x, y, z) : group3 xs
