@@ -6,23 +6,23 @@ import FlowGraph
 
 import Data.Maybe
 import Data.Array as Array (array, bounds) -- for a Graph implementation
-import Data.Sequence as Sequence (Seq, null, singleton, (|>), index, drop) -- for a Queue implementation
+import qualified Data.Sequence as Seq (Seq, null, singleton, (|>), index, drop) -- for a Queue implementation
 import qualified Data.IntMap.Strict as Map (IntMap, singleton, null, member, insert, assocs, (!), fromList, empty) -- for a Dictionary implementation
+import Debug.Trace
 
 type LayeredStructure = Map.IntMap Int
 
 -- Assign layers to the vertices of the graph in a bfs manner
 -- Returns: a dictionary mapping each vertex to its layer
 layers :: Graph -> Vertex -> LayeredStructure
-layers g s = layers' g s (Sequence.singleton (s, 0)) (Map.singleton s 0) where
+layers g s = layers' g s (Seq.singleton (s, 0)) (Map.singleton s 0) where
     layers' g s q m
-        | Sequence.null q = m                    -- no more vertices to visit, base case
-        | otherwise = layers' g s q' m' where    -- recursive case: take the top of the queue, visit its neighbors, and add them to the queue
-            (v, d) = Sequence.index q 0          -- get the top of the queue
-            q' = Sequence.drop 1 q               -- remove the top of the queue
-            m' = Map.insert v d m                -- add the vertex to the dictionary
+        | Seq.null q = m                    -- no more vertices to visit, base case
+        | otherwise = layers' g s q'' m'' where    -- recursive case: take the top of the queue, visit its neighbors, and add them to the queue
+            (v, d) = Seq.index q 0          -- get the top of the queue
+            q' = Seq.drop 1 q               -- remove the top of the queue
             -- add the neighbors of v to the queue if they are not already in the dictionary
-            q'' = foldl (\q (u, c) -> if Map.member u m' && c > 0 then q else q |> (u, d + 1)) q' (neighbors g v)
+            (q'', m'') = foldl (\(q, m) (u, c) -> if Map.member u m || c <= 0 then (q, m) else (q Seq.|> (u, d + 1), Map.insert u (d+1) m)) (q', m) (neighbors g v)
 
 -- Construct the layered graph
 -- i.e. keep only the edges that go from a vertex of layer i to a vertex of layer i + 1
@@ -34,32 +34,34 @@ layeredGraph g s t layers_ = Map.fromList [(v, Map.fromList $ filter (\(u, c) ->
 -- Find an augmenting path in the layered graph in a DFS manner
 -- Returns: a path from s to t in the layered graph
 findBlocking :: Graph -> LayeredStructure -> Vertex -> Vertex -> Maybe Path
-findBlocking g layers s t = restorePath (findAugmenting' g layers t [s] Map.empty) s t where
-        max_depth = layers Map.! t
-        findAugmenting' g layers t stack parents
+findBlocking g layers_ s t = reverse <$> restorePath (findAugmenting' g layers_ t [s] Map.empty) s t where
+        max_depth = layers_ Map.! t
+        findAugmenting' g layers_ t stack parents
+            | null stack = parents
             | s == t = parents
-            | layers Map.! s >= max_depth = findAugmenting' g layers t (tail stack) parents  -- no need to explore this vertex
-            | otherwise = findAugmenting' g layers t stack' parents' where
+            | layers_ Map.! s >= max_depth = findAugmenting' g layers_ t (tail stack) parents  -- no need to explore this vertex
+            | otherwise = findAugmenting' g layers_ t stack' parents' where
                 s = head stack
                 nbs = [v | (v, c) <- neighbors g s, c > 0, not $ Map.member v parents]
                 stack' = nbs ++ tail stack
                 parents' = foldl (\parents v -> Map.insert v s parents) parents nbs
 
 
-pushAugmenting :: Graph -> Path -> (Flow, Graph)
-pushAugmenting g p = (f, foldl (\g (u, v) -> pushFlow g u v f) g edges) where
+pushAugmenting :: Graph -> Path -> (Graph -> Vertex -> Vertex -> Flow -> Graph) -> (Flow, Graph)
+pushAugmenting g p pushFlow_ = (f, foldl (\g (u, v) -> pushFlow_ g u v f) g edges) where
     edges = zip p (tail p)
     f = minimum [c | (u, v) <- edges, let (_, _, c) = getEdge g u v]
 
 
-pushWhilePossible :: Graph -> Vertex -> Vertex -> LayeredStructure -> (Flow, Graph)
-pushWhilePossible g s t layers_ = case augmenting_path of
-    Nothing -> (0, g)
-    Just p -> (f + f'', g'')
-    where augmenting_path = findBlocking g layers_ s t
+pushWhilePossible :: Graph -> Graph -> LayeredStructure -> Vertex -> Vertex -> (Flow, Graph, Graph)
+pushWhilePossible g layered_g layers_ s t = case augmenting_path of
+    Nothing -> (0, g, layered_g)
+    Just p -> (f + f'', g'', layered_g'')
+    where augmenting_path = findBlocking layered_g layers_ s t
           Just path = augmenting_path
-          (f, g') = pushAugmenting g path
-          (f'', g'') = pushWhilePossible g' s t layers_
+          (f, g') = pushAugmenting g path pushFlow
+          (_, layered_g') = pushAugmenting layered_g path pushFlowLayered
+          (f'', g'', layered_g'') = pushWhilePossible g' layered_g' layers_ s t
 
 
 -- | Dinic Algorithm
@@ -70,5 +72,20 @@ dinic g s t
     | otherwise = (f' + f'', g'')
     where layers_ = layers g s
           layered_g = layeredGraph g s t layers_
-          (f', g') = pushWhilePossible layered_g s t layers_
+          (f', g', _) = pushWhilePossible layered_g layered_g layers_ s t
           (f'', g'') = dinic g' s t
+
+
+edgesG :: [(Vertex, Vertex, Capacity)]
+edgesG = [
+    (1, 2, 20),
+    (1, 3, 10),
+    (2, 3, 10),
+    (2, 4, 5),
+    (3, 5, 10),
+    (4, 3, 15),
+    (5, 4, 10),
+    (5, 6, 20),
+    (4, 6, 15)
+    ]
+

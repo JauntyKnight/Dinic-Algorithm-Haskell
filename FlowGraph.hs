@@ -4,6 +4,7 @@ import Data.Array as Array
 import qualified Data.IntMap.Strict as Map
 import Data.IntMap (IntMap)
 import Data.List
+import Debug.Trace
 
 type Vertex = Int
 type VertexMap a = Map.IntMap a
@@ -40,6 +41,10 @@ neighbors g v = Map.assocs (g Map.! v)
 pushFlow :: Graph -> Vertex -> Vertex -> Flow -> Graph
 pushFlow g u v f = Map.adjust (Map.adjust (\c -> c - f) v) u g' where
     g' = Map.adjust (Map.adjust (+ f) u) v g
+
+
+pushFlowLayered :: Graph -> Vertex -> Vertex -> Flow -> Graph
+pushFlowLayered g u v f = Map.adjust (Map.adjust (\c -> c - f) v) u g
 
 
 -- Assumes there are no cycles of size 2. Inshallah will be fixed later
