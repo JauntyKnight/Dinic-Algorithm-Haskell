@@ -34,7 +34,7 @@ layeredGraph g s t layers_ = Map.fromList [(v, Map.fromList $ filter (\(u, c) ->
 -- Find an augmenting path in the layered graph in a DFS manner
 -- Returns: a path from s to t in the layered graph
 findBlocking :: Graph -> LayeredStructure -> Vertex -> Vertex -> Maybe Path
-findBlocking g layers_ s t = reverse <$> restorePath (findAugmenting' g layers_ t [s] Map.empty) s t where
+findBlocking g layers_ s' t = reverse <$> restorePath (findAugmenting' g layers_ t [s'] Map.empty) s' t where
         max_depth = layers_ Map.! t
         findAugmenting' g layers_ t stack parents
             | null stack = parents
@@ -72,7 +72,7 @@ dinic g s t
     | otherwise = (f' + f'', g'')
     where layers_ = layers g s
           layered_g = layeredGraph g s t layers_
-          (f', g', _) = pushWhilePossible layered_g layered_g layers_ s t
+          (f', g', _) = pushWhilePossible g layered_g layers_ s t
           (f'', g'') = dinic g' s t
 
 

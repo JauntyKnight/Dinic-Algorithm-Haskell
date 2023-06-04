@@ -61,7 +61,7 @@ removeEdge g u v = Map.adjust (Map.delete v) u g
 
 restorePath :: VertexMap Vertex -> Vertex -> Vertex -> Maybe Path
 restorePath parents s t
-    | s == t = Just []
+    | s == t = Just [s]
     | not $ Map.member t parents = Nothing
     | otherwise = case restorePath parents s (parents Map.! t) of
         Nothing -> Nothing
@@ -76,8 +76,8 @@ readFileEdgeList filename = do
         handle <- openFile filename ReadMode
         contents <- hGetContents handle
         let ls = words contents
-            [s, t] = map read $ take 2 ls
-            edges = map (\(u, v, c) -> (read u, read v, read c)) . group3 $ drop 2 ls
+            [n, s, t] = map read $ take 3 ls
+            edges = map (\(u, v, c) -> (read u, read v, read c)) . group3 $ drop 3 ls
         return (s, t, edges)
         where group3 [] = []
               group3 (x:y:z:xs) = (x, y, z) : group3 xs

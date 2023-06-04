@@ -18,7 +18,7 @@ struct FlowEdge {
 struct Dinic {
     const long long flow_inf = 1e18;
     vector<FlowEdge> edges;
-    vector<vector<int>> adj;
+    vector<vector<int> > adj;
     int n, m = 0;
     int s, t;
     vector<int> level, ptr;
@@ -92,17 +92,16 @@ struct Dinic {
 };
 
 int main() {
-    int n, m, s, t;
-    cin >> s >> t;
-    int N = 0;
+    int n, s, t;
+    cin >> n >> s >> t;
+    n++;
     vector<vector<pair<int, int> > > adj(n);
     int u, v, c;
     while (cin >> u >> v >> c) {
         adj[u].push_back(make_pair(v, c));
-        N = max(N, max(u, v));
     }
 
-    Dinic dinic(N, s, t);
+    Dinic dinic(n, s, t);
     for (int i = 0; i < n; i++) {
         for (auto e : adj[i]) {
             dinic.add_edge(i, e.first, e.second);

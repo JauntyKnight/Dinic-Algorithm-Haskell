@@ -4,7 +4,7 @@ import Debug.Trace
 
 
 main = do
-    (s, t, es) <- readFileEdgeList "basic_network.txt"
-    let g = trace (show $ fromEdgeList es) fromEdgeList es
+    (s, t, es) <- readFileEdgeList "network.txt"
+    let g = fromEdgeList es
     let (f, g') = dinic g s t
     print f

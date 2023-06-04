@@ -2,15 +2,15 @@
 
 from random import randrange
 
-V = randrange(2, 100 + 1)
+V = randrange(2, 1000 + 1)
 s = randrange(0, V)
 t = randrange(0, V)
 while t == s:
     t = randrange(0, V)
 
-print(s, t)
+print(V, s, t)
 
-E = randrange(1, V * (V - 1) // 2 + 1)
+E = randrange(V + 2, V * (V - 1) - V)
 
 graph = [set() for _ in range(V)]
 
