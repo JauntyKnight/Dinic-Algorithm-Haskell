@@ -5,9 +5,8 @@ module Dinic where
 import FlowGraph
 
 import Data.Maybe
-import Data.Array as Array (array, bounds) -- for a Graph implementation
 import qualified Data.Sequence as Seq (Seq, null, singleton, (|>), index, drop) -- for a Queue implementation
-import qualified Data.IntMap.Strict as Map (IntMap, singleton, null, member, insert, assocs, (!), fromList, empty) -- for a Dictionary implementation
+import qualified Data.IntMap.Strict as Map (IntMap, singleton, null, member, notMember, insert, assocs, (!), fromList, empty) -- for a Dictionary implementation
 import Debug.Trace
 
 type LayeredStructure = Map.IntMap Int
@@ -34,15 +33,15 @@ layeredGraph g s t layers_ = Map.fromList [(v, Map.fromList $ filter (\(u, c) ->
 -- Find an augmenting path in the layered graph in a DFS manner
 -- Returns: a path from s to t in the layered graph
 findBlocking :: Graph -> LayeredStructure -> Vertex -> Vertex -> Maybe Path
-findBlocking g layers_ s' t = reverse <$> restorePath (findAugmenting' g layers_ t [s'] Map.empty) s' t where
+findBlocking g layers_ s' t = reverse <$> restorePath (findBlocking' g layers_ t [s'] Map.empty) s' t where
         max_depth = layers_ Map.! t
-        findAugmenting' g layers_ t stack parents
+        findBlocking' g layers_ t stack parents
             | null stack = parents
             | s == t = parents
-            | layers_ Map.! s >= max_depth = findAugmenting' g layers_ t (tail stack) parents  -- no need to explore this vertex
-            | otherwise = findAugmenting' g layers_ t stack' parents' where
+            | layers_ Map.! s >= max_depth = findBlocking' g layers_ t (tail stack) parents  -- no need to explore this vertex
+            | otherwise = findBlocking' g layers_ t stack' parents' where
                 s = head stack
-                nbs = [v | (v, c) <- neighbors g s, c > 0, not $ Map.member v parents]
+                nbs = [v | (v, c) <- neighbors g s, c > 0, Map.notMember v parents]
                 stack' = nbs ++ tail stack
                 parents' = foldl (\parents v -> Map.insert v s parents) parents nbs
 

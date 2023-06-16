@@ -17,7 +17,7 @@ type Graph = VertexMap (VertexMap Capacity)
 
 
 fromAssocList :: [(Vertex, [(Vertex, Capacity)])] -> Graph
-fromAssocList assocl = Map.fromList [(v, Map.fromList $ map (\(u, c) -> (u, c)) nbs) | (v, nbs) <- assocl]
+fromAssocList assocl = Map.fromList [(v, Map.fromList nbs) | (v, nbs) <- assocl]
 
 
 fromEdgeList :: [Edge] -> Graph
@@ -42,7 +42,7 @@ neighbors g v
 
 
 pushFlow :: Graph -> Vertex -> Vertex -> Flow -> Graph
-pushFlow g u v f = Map.adjust (Map.adjust (\c -> c - f) v) u g' where
+pushFlow g u v f = Map.adjust (Map.adjust (subtract f) v) u g' where
     g' = Map.adjust (Map.adjust (+ f) u) v g
 
 
@@ -50,7 +50,7 @@ pushFlowLayered :: Graph -> Vertex -> Vertex -> Flow -> Graph
 pushFlowLayered g u v f = Map.adjust (Map.adjust (\c -> c - f) v) u g
 
 
--- Assumes there are no cycles of size 2. Inshallah will be fixed later
+-- Assumes there are no cycles of size 2
 constructResidual :: Graph -> Graph
 constructResidual g = fromEdgeList $ edges ++ map (\(u, v, c) -> (v, u, 0)) edges where
     edges = toEdgeList g
@@ -63,13 +63,10 @@ restorePath :: VertexMap Vertex -> Vertex -> Vertex -> Maybe Path
 restorePath parents s t
     | s == t = Just [s]
     | not $ Map.member t parents = Nothing
-    | otherwise = case restorePath parents s (parents Map.! t) of
-        Nothing -> Nothing
-        Just p -> Just (t:p)
-
+    | otherwise = (t:) <$> restorePath parents s (parents Map.! t)
 
 -- reads a graph from a file in the format:
--- s t   -- source and sink on the first line
+-- n s t -- number of edges, source and sink on the first line
 -- u v c -- edge from u to v with capacity c on the remaining lines
 readFileEdgeList :: String -> IO (Vertex, Vertex, [Edge])
 readFileEdgeList filename = do
