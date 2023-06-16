@@ -4,7 +4,8 @@ import Debug.Trace
 
 
 main = do
-    (s, t, es) <- readFileEdgeList "network.txt"
+    (s, t, es) <- readFileEdgeList "basic_network.txt"
     let g = fromEdgeList es
-    let (f, g') = dinic g s t
+    let (f, edges) = dinicWithEdgesFlow g es s t
     print f
+    print edges
